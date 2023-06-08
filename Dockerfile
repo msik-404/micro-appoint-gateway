@@ -12,15 +12,15 @@ RUN go mod download && go mod verify
 
 # Copy all excpet dockerignore and build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -C ./cmd/companies/ -o companies
+RUN CGO_ENABLED=0 GOOS=linux go build -C ./cmd/gateway/ -o gateway
 
 # Deploy the application binary into a lean image
 # FROM alpine:latest AS build-release-stage
 # WORKDIR /
-# COPY --from=build-stage app/cmd/companies/companies /companies
+# COPY --from=build-stage app/cmd/gateway/gateway /gateway
 
-EXPOSE 50051 
+EXPOSE 8080
 
 # Run
-# CMD ["/companies"]
-CMD ["./cmd/companies/companies"]
+# CMD ["/gateway"]
+CMD ["./cmd/gateway/gateway"]
