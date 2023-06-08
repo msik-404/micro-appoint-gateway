@@ -42,7 +42,7 @@ func GetCompanies() gin.HandlerFunc {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		message := communication.ManyCompaniesRequest{
+		message := communication.CompaniesRequest{
 			StartValue: startValue,
 			NPerPage:   &nPerPage,
 		}

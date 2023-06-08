@@ -33,7 +33,7 @@ func GetCompany() gin.HandlerFunc {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		message := communication.OneCompanyRequest{Id: companyID}
+		message := communication.CompanyRequest{Id: companyID}
 		reply, err := client.FindOneCompany(ctx, &message)
 		if err != nil {
 			code := status.Code(err)
