@@ -1,5 +1,5 @@
 package companies
 
 const (
-    ConnString = "companies:50051"
+	ConnString = "companies:50051"
 )

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
-    "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
@@ -36,15 +36,15 @@ func GetCompany() gin.HandlerFunc {
 		message := communication.OneCompanyRequest{Id: companyID}
 		reply, err := client.FindOneCompany(ctx, &message)
 		if err != nil {
-            code := status.Code(err)
-            if code == codes.InvalidArgument {
-                c.AbortWithError(http.StatusBadRequest, err)
-            } else if code == codes.NotFound {
-                c.AbortWithError(http.StatusNotFound, err)
-            } else {
-		    	c.AbortWithError(http.StatusInternalServerError, err)
-            }
-            return
+			code := status.Code(err)
+			if code == codes.InvalidArgument {
+				c.AbortWithError(http.StatusBadRequest, err)
+			} else if code == codes.NotFound {
+				c.AbortWithError(http.StatusNotFound, err)
+			} else {
+				c.AbortWithError(http.StatusInternalServerError, err)
+			}
+			return
 		}
 		c.JSON(http.StatusOK, reply)
 	}

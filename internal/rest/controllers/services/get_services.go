@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
-    "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
@@ -26,10 +26,10 @@ func GetServices() gin.HandlerFunc {
 		var startValue *string = nil
 		if query != "" {
 			startValue = &query
-            if _, err := middleware.IsProperObjectIDHex(*startValue); err != nil {
-                c.AbortWithError(http.StatusBadRequest, err)
-                return
-            }
+			if _, err := middleware.IsProperObjectIDHex(*startValue); err != nil {
+				c.AbortWithError(http.StatusBadRequest, err)
+				return
+			}
 		}
 		nPerPage, err := middleware.GetNPerPageValue(c)
 		if err != nil {
@@ -48,23 +48,23 @@ func GetServices() gin.HandlerFunc {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		message := communication.ManyServicesRequest{
-            CompanyId: companyID,
+			CompanyId:  companyID,
 			StartValue: startValue,
 			NPerPage:   &nPerPage,
 		}
 		reply, err := client.FindManyServices(ctx, &message)
 		if err != nil {
-            code := status.Code(err)
-            if code == codes.InvalidArgument {
-                c.AbortWithError(http.StatusBadRequest, err)
-            } else if code == codes.NotFound {
-                c.AbortWithError(http.StatusNotFound, err)
-            } else {
-		    	c.AbortWithError(http.StatusInternalServerError, err)
-            }
-            return
+			code := status.Code(err)
+			if code == codes.InvalidArgument {
+				c.AbortWithError(http.StatusBadRequest, err)
+			} else if code == codes.NotFound {
+				c.AbortWithError(http.StatusNotFound, err)
+			} else {
+				c.AbortWithError(http.StatusInternalServerError, err)
+			}
+			return
 		}
-        c.JSON(http.StatusOK, reply.Services)
+		c.JSON(http.StatusOK, reply.Services)
 	}
 	return gin.HandlerFunc(fn)
 }

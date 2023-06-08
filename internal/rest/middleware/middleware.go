@@ -15,7 +15,7 @@ func IsProperString(value *string, maxLength int) (bool, error) {
 			return false, errors.New(fmt.Sprintf(
 				"value should be shorter than %d",
 				maxLength,
-            ))
+			))
 		}
 	}
 	return true, nil
