@@ -47,7 +47,7 @@ func GetServices() gin.HandlerFunc {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		message := communication.ManyServicesRequest{
+		message := communication.ServicesRequest{
 			CompanyId:  companyID,
 			StartValue: startValue,
 			NPerPage:   &nPerPage,
