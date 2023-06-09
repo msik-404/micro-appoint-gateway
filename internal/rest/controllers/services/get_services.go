@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/communication"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -43,11 +43,11 @@ func GetServices() gin.HandlerFunc {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
 		defer conn.Close()
-		client := communication.NewApiClient(conn)
+		client := companiespb.NewApiClient(conn)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		message := communication.ServicesRequest{
+		message := companiespb.ServicesRequest{
 			CompanyId:  companyID,
 			StartValue: startValue,
 			NPerPage:   &nPerPage,

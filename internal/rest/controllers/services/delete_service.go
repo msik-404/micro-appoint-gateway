@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/communication"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -22,7 +22,6 @@ func DeleteService() gin.HandlerFunc {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
-		message := communication.DeleteServiceRequest{Id: serviceID}
 
 		var conn *grpc.ClientConn
 		conn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
@@ -30,10 +29,12 @@ func DeleteService() gin.HandlerFunc {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
 		defer conn.Close()
-		client := communication.NewApiClient(conn)
+		client := companiespb.NewApiClient(conn)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+
+        message := companiespb.DeleteServiceRequest{Id: serviceID}
 		reply, err := client.DeleteService(ctx, &message)
 		if err != nil {
 			code := status.Code(err)

@@ -1,5 +1,5 @@
 package employees 
 
 const (
-	ConnString = "employees:50052"
+	ConnString = "employees:50051"
 )
