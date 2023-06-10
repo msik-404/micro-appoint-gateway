@@ -16,5 +16,5 @@ services:
 
 networks:
   micro-appoint-net:
-    name: micro-appoint-net 
-    external: true
+    name: micro-appoint-net
+    driver: bridge
