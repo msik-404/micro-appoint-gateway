@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -15,59 +16,73 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
-func UpdateService() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		serviceID := c.Param("id")
-		if _, err := middleware.IsProperObjectIDHex(serviceID); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		var message companiespb.UpdateServiceRequest
-		if err := c.BindJSON(&message); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		message.Id = serviceID
-		if _, err := middleware.IsProperString(message.Name, 30); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		if _, err := middleware.IsProperInteger(message.Price, 0, 1000000); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		if _, err := middleware.IsProperInteger(message.Duration, 0, 480); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		if _, err := middleware.IsProperString(message.Description, 300); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
+func UpdateService(c *gin.Context) {
+	owner, err := middleware.GetOwner(c)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
+	companyID := c.Param("company_id")
+	if err := middleware.IsProperObjectIDHex(companyID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	serviceID := c.Param("service_id")
+	if err := middleware.IsProperObjectIDHex(serviceID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 
-		var conn *grpc.ClientConn
-		conn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
-		if err != nil {
+	if _, ok := owner.Companies[companyID]; !ok {
+		c.AbortWithError(
+			http.StatusUnauthorized,
+			errors.New("This owner does not own this company"),
+		)
+		return
+	}
+
+	type Service struct {
+		Name        *string `json:"name" binding:"omitempty,max=30"`
+		Price       *int32  `json:"price" binding:"omitempty,min=0,max=1000000"`
+		Duration    *int32  `json:"duration" binding:"omitempty,min=0,max=480"`
+		Description *string `json:"description" binding:"omitempty,max=300"`
+	}
+	var serviceUpdate Service
+	if err := c.BindJSON(&serviceUpdate); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	message := companiespb.UpdateServiceRequest{
+		CompanyId:   &companyID,
+		Id:          &serviceID,
+		Name:        serviceUpdate.Name,
+		Price:       serviceUpdate.Price,
+		Duration:    serviceUpdate.Duration,
+		Description: serviceUpdate.Description,
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer conn.Close()
+	client := companiespb.NewApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	reply, err := client.UpdateService(ctx, &message)
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		defer conn.Close()
-		client := companiespb.NewApiClient(conn)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		reply, err := client.UpdateService(ctx, &message)
-		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			return
-		}
-		c.JSON(http.StatusOK, reply)
+		return
 	}
-	return gin.HandlerFunc(fn)
+	c.JSON(http.StatusOK, reply)
 }

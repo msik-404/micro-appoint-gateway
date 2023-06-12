@@ -2,6 +2,7 @@ package companies
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,42 +13,78 @@ import (
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
-func DeleteCompany() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		companyID := c.Param("id")
-		if _, err := middleware.IsProperObjectIDHex(companyID); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
+func DeleteCompany(c *gin.Context) {
+	owner, err := middleware.GetOwner(c)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
+	companyID := c.Param("company_id")
+	if err := middleware.IsProperObjectIDHex(companyID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	if _, ok := owner.Companies[companyID]; !ok {
+		c.AbortWithError(
+			http.StatusUnauthorized,
+			errors.New("This owner does not own this company"),
+		)
+		return
+	}
 
-		var conn *grpc.ClientConn
-		conn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
-		if err != nil {
+	var conn *grpc.ClientConn
+	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	companiesClient := companiespb.NewApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	companiesMessage := companiespb.DeleteCompanyRequest{Id: &companyID}
+	reply, err := companiesClient.DeleteCompany(ctx, &companiesMessage)
+    conn.Close()
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		defer conn.Close()
-		client := companiespb.NewApiClient(conn)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-        message := companiespb.DeleteCompanyRequest{Id: companyID}
-		reply, err := client.DeleteCompany(ctx, &message)
-		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			return
-		}
-		c.JSON(http.StatusOK, reply)
+		return
 	}
-	return gin.HandlerFunc(fn)
+
+	conn, err = grpc.Dial(users.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer conn.Close()
+	usersMessage := userspb.DeleteOwnedCompanyRequest{
+		Id:        &owner.ID,
+		CompanyId: &companyID,
+	}
+	usersClient := userspb.NewApiClient(conn)
+	reply, err = usersClient.DeleteOwnedCompany(ctx, &usersMessage)
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
+			c.AbortWithError(http.StatusInternalServerError, err)
+		}
+		return
+	}
+	c.JSON(http.StatusOK, reply)
 }

@@ -2,6 +2,7 @@ package employees
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -15,39 +16,58 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
-func DeleteEmployee() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		employeeID := c.Param("id")
-		if _, err := middleware.IsProperObjectIDHex(employeeID); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
+func DeleteEmployee(c *gin.Context) {
+	owner, err := middleware.GetOwner(c)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
 
-		var conn *grpc.ClientConn
-		conn, err := grpc.Dial(employees.ConnString, grpc.WithInsecure())
-		if err != nil {
+	companyID := c.Param("company_id")
+	if err := middleware.IsProperObjectIDHex(companyID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	employeeID := c.Param("employee_id")
+	if err := middleware.IsProperObjectIDHex(employeeID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if _, ok := owner.Companies[companyID]; !ok {
+		c.AbortWithError(
+			http.StatusUnauthorized,
+			errors.New("This owner does not own this company"),
+		)
+        return
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = grpc.Dial(employees.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer conn.Close()
+	client := employeespb.NewApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	message := employeespb.DeleteEmployeeRequest{
+        CompanyId: &companyID,
+        Id: &employeeID,
+    }
+	reply, err := client.DeleteEmployee(ctx, &message)
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		defer conn.Close()
-		client := employeespb.NewApiClient(conn)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-        message := employeespb.DeleteEmployeeRequest{Id: employeeID}
-		reply, err := client.DeleteEmployee(ctx, &message)
-		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			return
-		}
-		c.JSON(http.StatusOK, reply)
+		return
 	}
-	return gin.HandlerFunc(fn)
+	c.JSON(http.StatusOK, reply)
 }

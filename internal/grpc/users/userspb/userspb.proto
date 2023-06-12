@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb";
+
+package userspb;
+
+service Api {
+    rpc FindOneCustomer (CustomerRequest) returns (CustomerReply) {}
+    rpc FindOneOwner (OwnerRequest) returns (OwnerReply) {}
+    rpc FindOneCustomerCredentials (CustomerCredentialsRequest) returns (CredentialsReply) {}
+    rpc FindOneOwnerCredentials (OwnerCredentialsRequest) returns (CredentialsReply) {}
+    rpc AddCustomer (AddCustomerRequest) returns (google.protobuf.Empty) {}
+    rpc AddOwner (AddOwnerRequest) returns (google.protobuf.Empty) {}
+    rpc AddOwnedCompany (AddOwnedCompanyRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteOwnedCompany (DeleteOwnedCompanyRequest) returns (google.protobuf.Empty) {}
+    rpc UpdateCustomer (UpdateCustomerRequest) returns (google.protobuf.Empty) {}
+    rpc UpdateOwner (UpdateOwnerRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteCustomer (DeleteCustomerRequest) returns (google.protobuf.Empty) {}
+    rpc DeleteOwner (DeleteOwnerRequest) returns (google.protobuf.Empty) {}
+}
+
+message CustomerRequest {
+    optional string id = 1;
+}
+
+message CustomerReply {
+    optional string mail = 1;
+    optional string name = 2;
+    optional string surname = 3;
+}
+
+message OwnerRequest {
+    optional string id = 1;
+}
+
+message OwnerReply {
+    optional string mail = 1;
+    optional string name = 2;
+    optional string surname = 3;
+    repeated string companies = 4;
+}
+
+message CustomerCredentialsRequest {
+    optional string mail = 1;
+}
+
+message OwnerCredentialsRequest {
+    optional string mail = 1;
+}
+
+message CredentialsReply {
+    optional string id = 1;
+    optional string hashed_pwd = 2;
+}
+
+message AddCustomerRequest {
+    optional string mail = 1;
+    optional string hashed_pwd = 2;
+    optional string name = 3;
+    optional string surname = 4;
+}
+
+message AddOwnerRequest {
+    optional string mail = 1;
+    optional string hashed_pwd = 2;
+    optional string name = 3;
+    optional string surname = 4;
+}
+
+message AddOwnedCompanyRequest {
+    optional string id = 1;
+    optional string company_id = 2;
+}
+
+message DeleteOwnedCompanyRequest {
+    optional string id = 1;
+    optional string company_id = 2;
+}
+
+message UpdateCustomerRequest {
+    optional string id = 1;
+    optional string mail = 2;
+    optional string hashed_pwd = 3;
+    optional string name = 4;
+    optional string surname = 5;
+}
+
+message UpdateOwnerRequest {
+    optional string id = 1;
+    optional string mail = 2;
+    optional string hashed_pwd = 3;
+    optional string name = 4;
+    optional string surname = 5;
+}
+
+message DeleteCustomerRequest {
+    optional string id = 1;
+}
+
+message DeleteOwnerRequest {
+    optional string id = 1;
+}

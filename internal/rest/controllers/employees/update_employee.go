@@ -2,6 +2,7 @@ package employees
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -16,86 +17,86 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/strtime"
 )
 
-func UpdateEmployee() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		employeeID := c.Param("id")
-		if _, err := middleware.IsProperObjectIDHex(employeeID); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
+func UpdateEmployee(c *gin.Context) {
+	owner, err := middleware.GetOwner(c)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
+	companyID := c.Param("company_id")
+	if err := middleware.IsProperObjectIDHex(companyID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	employeeID := c.Param("employee_id")
+	if err := middleware.IsProperObjectIDHex(employeeID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
 
-		type Employee struct {
-			CompanyID  *string               `json:"company_d,omitempty"`
-			Name       *string               `json:"name,omitempty"`
-			Surname    *string               `json:"surname,omitempty"`
-			WorkTimes  *strtime.WorkTimesStr `json:"work_times,omitempty"`
-			Competence []string              `json:"competence,omitempty"`
-		}
-		var employeeUpdate Employee
+	if _, ok := owner.Companies[companyID]; !ok {
+		c.AbortWithError(
+			http.StatusUnauthorized,
+			errors.New("This owner does not own this company"),
+		)
+		return
+	}
 
-		if err := c.BindJSON(&employeeUpdate); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		if _, err := middleware.IsProperString(employeeUpdate.Name, 30); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		if _, err := middleware.IsProperString(employeeUpdate.Surname, 30); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-        message := employeespb.UpdateEmployeeRequest{
-            Id:        employeeID,
-            Name:      employeeUpdate.Name,
-            Surname:   employeeUpdate.Surname,
-        }
-		if employeeUpdate.WorkTimes != nil {
-			workTimes, err := strtime.ToWorkTimes(employeeUpdate.WorkTimes)
-			if err != nil {
-				c.AbortWithError(http.StatusBadRequest, err)
-				return
-			}
-            message.WorkTimes = workTimes
-		}
-		for _, hex := range employeeUpdate.Competence {
-			if _, err := middleware.IsProperObjectIDHex(hex); err != nil {
-				c.AbortWithError(http.StatusBadRequest, err)
-				return
-			}
-			message.Competence = append(message.Competence, hex)
-		}
-		if employeeUpdate.CompanyID != nil {
-			if _, err := middleware.IsProperObjectIDHex(*employeeUpdate.CompanyID); err != nil {
-				c.AbortWithError(http.StatusBadRequest, err)
-				return
-			}
-			message.CompanyId = employeeUpdate.CompanyID
-		}
-
-		var conn *grpc.ClientConn
-        conn, err := grpc.Dial(employees.ConnString, grpc.WithInsecure())
+	type Employee struct {
+		Name       *string               `json:"name" binding:"omitempty,max=30"`
+		Surname    *string               `json:"surname" binding:"omitempty,max=30"`
+		WorkTimes  *strtime.WorkTimesStr `json:"work_times" binding:"omitempty"`
+		Competence []string              `json:"competence" binding:"omitempty"`
+	}
+	var employeeUpdate Employee
+	if err := c.BindJSON(&employeeUpdate); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	message := employeespb.UpdateEmployeeRequest{
+		CompanyId: &companyID,
+		Id:        &employeeID,
+		Name:      employeeUpdate.Name,
+		Surname:   employeeUpdate.Surname,
+	}
+	if employeeUpdate.WorkTimes != nil {
+		workTimes, err := strtime.ToWorkTimes(employeeUpdate.WorkTimes)
 		if err != nil {
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		message.WorkTimes = workTimes
+	}
+	for _, hex := range employeeUpdate.Competence {
+		if err := middleware.IsProperObjectIDHex(hex); err != nil {
+			c.AbortWithError(http.StatusBadRequest, err)
+			return
+		}
+		message.Competence = append(message.Competence, hex)
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = grpc.Dial(employees.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer conn.Close()
+	client := employeespb.NewApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	reply, err := client.UpdateEmployee(ctx, &message)
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		defer conn.Close()
-		client := employeespb.NewApiClient(conn)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		reply, err := client.UpdateEmployee(ctx, &message)
-		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			return
-		}
-		c.JSON(http.StatusOK, reply)
+		return
 	}
-	return gin.HandlerFunc(fn)
+	c.JSON(http.StatusOK, reply)
 }

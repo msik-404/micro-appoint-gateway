@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -15,39 +16,58 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
-func DeleteService() gin.HandlerFunc {
-	fn := func(c *gin.Context) {
-		serviceID := c.Param("id")
-		if _, err := middleware.IsProperObjectIDHex(serviceID); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
+func DeleteService(c *gin.Context) {
+	owner, err := middleware.GetOwner(c)
+	if err != nil {
+		c.AbortWithError(http.StatusUnauthorized, err)
+		return
+	}
 
-		var conn *grpc.ClientConn
-		conn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
-		if err != nil {
+	companyID := c.Param("company_id")
+	if err := middleware.IsProperObjectIDHex(companyID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	serviceID := c.Param("service_id")
+	if err := middleware.IsProperObjectIDHex(serviceID); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	if _, ok := owner.Companies[companyID]; !ok {
+		c.AbortWithError(
+			http.StatusUnauthorized,
+			errors.New("This owner does not own this company"),
+		)
+		return
+	}
+
+	var conn *grpc.ClientConn
+	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	defer conn.Close()
+	client := companiespb.NewApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	message := companiespb.DeleteServiceRequest{
+		CompanyId: &companyID,
+		Id:        &serviceID,
+	}
+	reply, err := client.DeleteService(ctx, &message)
+
+	if err != nil {
+		code := status.Code(err)
+		if code == codes.InvalidArgument {
+			c.AbortWithError(http.StatusBadRequest, err)
+		} else if code == codes.NotFound {
+			c.AbortWithError(http.StatusNotFound, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
-		defer conn.Close()
-		client := companiespb.NewApiClient(conn)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-        message := companiespb.DeleteServiceRequest{Id: serviceID}
-		reply, err := client.DeleteService(ctx, &message)
-		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
-			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
-			}
-			return
-		}
-		c.JSON(http.StatusOK, reply)
+		return
 	}
-	return gin.HandlerFunc(fn)
+	c.JSON(http.StatusOK, reply)
 }
