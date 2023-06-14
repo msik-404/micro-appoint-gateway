@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/companies"
@@ -12,6 +13,8 @@ import (
 
 func main() {
 	r := gin.Default()
+
+	r.Use(cors.Default())
 
 	r.GET("/companies", companies.GetCompanies)
 	r.GET("/companies/:company_id", companies.GetCompany)
