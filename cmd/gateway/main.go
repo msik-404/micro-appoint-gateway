@@ -14,7 +14,13 @@ import (
 func main() {
 	r := gin.Default()
 
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"https://foo.com"},
+		AllowMethods:     []string{"PUT", "PATCH"},
+		AllowHeaders:     []string{"Origin"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	r.GET("/companies", companies.GetCompanies)
 	r.GET("/companies/:company_id", companies.GetCompany)
