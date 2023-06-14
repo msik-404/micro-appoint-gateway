@@ -62,15 +62,20 @@ func GetCompany(c *gin.Context) {
 
 	if err != nil {
 		code := status.Code(err)
-		if code == codes.InvalidArgument {
-			c.AbortWithError(http.StatusBadRequest, err)
-		} else if code == codes.NotFound {
-			c.AbortWithError(http.StatusNotFound, err)
-		} else {
-			c.AbortWithError(http.StatusInternalServerError, err)
-		}
-		return
+        if code != codes.NotFound {
+            if code == codes.InvalidArgument {
+                c.AbortWithError(http.StatusBadRequest, err)
+            } else {
+                c.AbortWithError(http.StatusInternalServerError, err)
+            }
+            return
+        }
 	}
+
+    var employees []*employeespb.EmployeeShort
+    if employeesReply != nil {
+        employees = employeesReply.Employees
+    }
 
 	type Response struct {
 		Name            *string                      `json:"name,omitempty"`
@@ -86,7 +91,7 @@ func GetCompany(c *gin.Context) {
 		Localisation:    companiesReply.Localisation,
 		LongDescription: companiesReply.LongDescription,
 		Services:        companiesReply.Services,
-		Employees:       employeesReply.Employees,
+		Employees:       employees,
 	}
 	c.JSON(http.StatusOK, response)
 }
