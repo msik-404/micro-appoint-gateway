@@ -70,7 +70,9 @@ func UpdateOwner(c *gin.Context) {
 			c.AbortWithError(http.StatusBadRequest, err)
 		} else if code == codes.NotFound {
 			c.AbortWithError(http.StatusNotFound, err)
-		} else {
+		} else if code == codes.AlreadyExists {
+            c.AbortWithError(http.StatusConflict, err)
+        } else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
 		return

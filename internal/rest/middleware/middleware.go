@@ -67,7 +67,7 @@ func RequireCustomerAuth(c *gin.Context) {
 			if code == codes.InvalidArgument {
 				c.AbortWithError(http.StatusBadRequest, err)
 			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
+				c.AbortWithError(http.StatusUnauthorized, err)
 			} else {
 				c.AbortWithError(http.StatusInternalServerError, err)
 			}
@@ -145,7 +145,7 @@ func RequireOwnerAuth(c *gin.Context) {
 			if code == codes.InvalidArgument {
 				c.AbortWithError(http.StatusBadRequest, err)
 			} else if code == codes.NotFound {
-				c.AbortWithError(http.StatusNotFound, err)
+				c.AbortWithError(http.StatusUnauthorized, err)
 			} else {
 				c.AbortWithError(http.StatusInternalServerError, err)
 			}
