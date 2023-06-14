@@ -36,24 +36,25 @@ func AddCompany(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	message := companiespb.AddCompanyRequest{
-		Name:             newCompany.Name,
-		Type:             newCompany.Type,
-		Localisation:     newCompany.Localisation,
-		ShortDescription: newCompany.ShortDescription,
-		LongDescription:  newCompany.LongDescription,
-	}
 
-	var conn *grpc.ClientConn
-	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
+	var companiesConn *grpc.ClientConn
+	companiesConn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	companiesClient := companiespb.NewApiClient(conn)
+	defer companiesConn.Close()
+	companiesClient := companiespb.NewApiClient(companiesConn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	companiesReply, err := companiesClient.AddCompany(ctx, &message)
+    addCompanyMessage := companiespb.AddCompanyRequest{
+        Name:             newCompany.Name,
+        Type:             newCompany.Type,
+        Localisation:     newCompany.Localisation,
+        ShortDescription: newCompany.ShortDescription,
+        LongDescription:  newCompany.LongDescription,
+    }
+	addCompanyReply, err := companiesClient.AddCompany(ctx, &addCompanyMessage)
 
 	if err != nil {
 		code := status.Code(err)
@@ -62,28 +63,44 @@ func AddCompany(c *gin.Context) {
 		} else if code == codes.NotFound {
 			c.AbortWithError(http.StatusNotFound, err)
 		} else if code == codes.AlreadyExists {
-            c.AbortWithError(http.StatusConflict, err)
-        } else {
+			c.AbortWithError(http.StatusConflict, err)
+		} else {
 			c.AbortWithError(http.StatusInternalServerError, err)
 		}
 		return
 	}
 
-    conn.Close()
-	conn, err = grpc.Dial(users.ConnString, grpc.WithInsecure())
+	var usersConn *grpc.ClientConn
+	usersConn, err = grpc.Dial(users.ConnString, grpc.WithInsecure())
+    // If connection could not be established, roll back changes.
 	if err != nil {
+		deleteCompanyMessage := companiespb.DeleteCompanyRequest{
+			Id: addCompanyReply.Id,
+		}
+		_, deleteErr := companiesClient.DeleteCompany(ctx, &deleteCompanyMessage)
+		if deleteErr != nil {
+			err = deleteErr
+		}
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-    defer conn.Close()
-	usersMessage := userspb.AddOwnedCompanyRequest{
-		Id:        &owner.ID,
-		CompanyId: companiesReply.Id,
-	}
-	usersClient := userspb.NewApiClient(conn)
+	defer usersConn.Close()
+	usersClient := userspb.NewApiClient(usersConn)
+    usersMessage := userspb.AddOwnedCompanyRequest{
+        Id:        &owner.ID,
+        CompanyId: addCompanyReply.Id,
+    }
 	usersReply, err := usersClient.AddOwnedCompany(ctx, &usersMessage)
 
+    // If operation cloud not be performed, roll back changes.
 	if err != nil {
+		deleteCompanyMessage := companiespb.DeleteCompanyRequest{
+			Id: addCompanyReply.Id,
+		}
+		_, deleteErr := companiesClient.DeleteCompany(ctx, &deleteCompanyMessage)
+		if deleteErr != nil {
+			err = deleteErr
+		}
 		code := status.Code(err)
 		if code == codes.InvalidArgument {
 			c.AbortWithError(http.StatusBadRequest, err)
