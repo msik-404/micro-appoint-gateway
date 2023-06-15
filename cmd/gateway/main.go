@@ -26,6 +26,7 @@ func main() {
 	r.GET("/companies/:company_id/services", services.GetServices)
 	r.GET("/companies/:company_id/employees", employees.GetEmployees)
 	r.GET("/employees/:employee_id", employees.GetEmployee)
+	r.GET("/owners/companies", middleware.RequireOwnerAuth, companies.GetCompaniesByIds)
 
 	r.POST("/login/customers", users.LoginCustomer)
 	r.POST("/login/owners", users.LoginOwner)
