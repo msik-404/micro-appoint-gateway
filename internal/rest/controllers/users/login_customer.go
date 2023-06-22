@@ -19,7 +19,7 @@ import (
 func LoginCustomer(c *gin.Context) {
 	type LoginPlain struct {
 		Mail     string `json:"mail" binding:"required,max=30"`
-		PlainPwd string `json:"pwd" bidning:"required,max=72"`
+		PlainPwd string `json:"pwd" binding:"required,max=72"`
 	}
 	var loginPlain LoginPlain
 	if err := c.BindJSON(&loginPlain); err != nil {
