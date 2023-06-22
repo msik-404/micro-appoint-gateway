@@ -66,11 +66,11 @@ func bind[T any](c *gin.Context, key string) {
 }
 
 func BindAuth[T any](c *gin.Context) {
-    bind[T](c, "auth")
+	bind[T](c, "auth")
 }
 
 func Bind[T any](c *gin.Context) {
-    bind[T](c, "data")
+	bind[T](c, "data")
 }
 
 func BindWithAuth[T any](c *gin.Context) {
@@ -105,6 +105,18 @@ func GetAuth(c *gin.Context) (*auth.Token, error) {
 	return &data, nil
 }
 
+type AuthHeader struct {
+    Auth string `header:"Authentication" binding:"required"`
+}
+
+func getAuthHeader(c *gin.Context) (*string, error) {
+    var header AuthHeader
+    if err := c.BindHeader(&header); err != nil {
+        return nil, err
+    }
+    return &header.Auth, nil
+}
+
 type Customer struct {
 	ID      string
 	Mail    string
@@ -113,13 +125,12 @@ type Customer struct {
 }
 
 func RequireCustomerAuth(c *gin.Context) {
-	tokenRequest, err := GetAuth(c)
+	tokenStr, err := getAuthHeader(c)
 	if err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	tokenStr := tokenRequest.Token
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
@@ -192,13 +203,12 @@ type Owner struct {
 }
 
 func RequireOwnerAuth(c *gin.Context) {
-	tokenRequest, err := GetAuth(c)
+	tokenStr, err := getAuthHeader(c)
 	if err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	tokenStr := tokenRequest.Token
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
