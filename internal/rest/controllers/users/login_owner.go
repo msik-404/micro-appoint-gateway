@@ -67,7 +67,7 @@ func LoginOwner(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetSameSite(http.SameSiteNoneMode)
 	c.SetCookie("Authorization", tokenStr, 3600, "", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{})
