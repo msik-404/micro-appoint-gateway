@@ -68,6 +68,8 @@ func bind[T any](c *gin.Context, key string) {
 
 func Bind[T any](c *gin.Context) {
 	bind[T](c, "data")
+	c.Next()
+	return
 }
 
 func GetData[T any](c *gin.Context) (*T, error) {
