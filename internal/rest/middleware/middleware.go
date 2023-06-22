@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -106,15 +107,19 @@ func GetAuth(c *gin.Context) (*auth.Token, error) {
 }
 
 type AuthHeader struct {
-    Auth string `header:"Authentication" binding:"required"`
+	Auth string `header:"Authorization" binding:"required"`
 }
 
 func getAuthHeader(c *gin.Context) (*string, error) {
-    var header AuthHeader
-    if err := c.BindHeader(&header); err != nil {
-        return nil, err
-    }
-    return &header.Auth, nil
+	var header AuthHeader
+	if err := c.BindHeader(&header); err != nil {
+		return nil, err
+	}
+	splitToken := strings.Split(header.Auth, "Bearer ")
+	if len(splitToken) != 2 {
+		return nil, errors.New("Wrong header format")
+	}
+	return &splitToken[1], nil
 }
 
 type Customer struct {
