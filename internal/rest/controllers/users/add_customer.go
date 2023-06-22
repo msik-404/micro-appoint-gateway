@@ -13,28 +13,23 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
+	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
 func AddCustomer(c *gin.Context) {
-	type CustomerPlain struct {
-		Mail     *string `json:"mail" binding:"required,max=30"`
-		PlainPwd *string `json:"pwd" bidning:"required,max=72"`
-		Name     *string `json:"name" binding:"omitempty,max=30"`
-		Surname  *string `json:"surname" binding:"omitempty,max=30"`
-	}
-	var newCustomerPlain CustomerPlain
-	if err := c.BindJSON(&newCustomerPlain); err != nil {
+    newCustomerPlain, err := middleware.GetData[middleware.User](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	hash, err := auth.HashAndSalt([]byte(*newCustomerPlain.PlainPwd))
+	hash, err := auth.HashAndSalt([]byte(newCustomerPlain.PlainPwd))
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	hashedPwd := string(hash)
 	message := userspb.AddCustomerRequest{
-		Mail:      newCustomerPlain.Mail,
+		Mail:      &newCustomerPlain.Mail,
 		HashedPwd: &hashedPwd,
 		Name:      newCustomerPlain.Name,
 		Surname:   newCustomerPlain.Surname,

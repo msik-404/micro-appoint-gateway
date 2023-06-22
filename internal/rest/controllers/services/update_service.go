@@ -41,14 +41,8 @@ func UpdateService(c *gin.Context) {
 		return
 	}
 
-	type Service struct {
-		Name        *string `json:"name" binding:"omitempty,max=30"`
-		Price       *int32  `json:"price" binding:"omitempty,min=0,max=1000000"`
-		Duration    *int32  `json:"duration" binding:"omitempty,min=0,max=480"`
-		Description *string `json:"description" binding:"omitempty,max=300"`
-	}
-	var serviceUpdate Service
-	if err := c.BindJSON(&serviceUpdate); err != nil {
+    serviceUpdate, err := middleware.GetData[middleware.Service](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

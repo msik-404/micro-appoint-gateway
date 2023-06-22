@@ -13,28 +13,23 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
+	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
 func AddOwner(c *gin.Context) {
-	type OwnerPlain struct {
-		Mail     *string `json:"mail" binding:"required,max=30"`
-		PlainPwd *string `json:"pwd" bidning:"required,max=72"`
-		Name     *string `json:"name" binding:"omitempty,max=30"`
-		Surname  *string `json:"surname" binding:"omitempty,max=30"`
-	}
-	var newOwnerPlain OwnerPlain
-	if err := c.BindJSON(&newOwnerPlain); err != nil {
+    newOwnerPlain, err := middleware.GetData[middleware.User](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
-	hash, err := auth.HashAndSalt([]byte(*newOwnerPlain.PlainPwd))
+	hash, err := auth.HashAndSalt([]byte(newOwnerPlain.PlainPwd))
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 	hashedPwd := string(hash)
 	message := userspb.AddOwnerRequest{
-		Mail:      newOwnerPlain.Mail,
+		Mail:      &newOwnerPlain.Mail,
 		HashedPwd: &hashedPwd,
 		Name:      newOwnerPlain.Name,
 		Surname:   newOwnerPlain.Surname,

@@ -36,15 +36,8 @@ func UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	type Company struct {
-		Name             *string `json:"name" binding:"omitempty,max=30"`
-		Type             *string `json:"type" binding:"omitempty,max=30"`
-		Localisation     *string `json:"localisation" binding:"omitempty,max=60"`
-		ShortDescription *string `json:"short_description" binding:"omitempty,max=150"`
-		LongDescription  *string `json:"long_description" binding:"omitempty,max=300"`
-	}
-	var companyUpdate Company
-	if err := c.BindJSON(&companyUpdate); err != nil {
+    companyUpdate, err := middleware.GetData[middleware.Company](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

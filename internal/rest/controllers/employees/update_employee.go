@@ -42,14 +42,8 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
-	type Employee struct {
-		Name       *string               `json:"name" binding:"omitempty,max=30"`
-		Surname    *string               `json:"surname" binding:"omitempty,max=30"`
-		WorkTimes  *strtime.WorkTimesStr `json:"work_times" binding:"omitempty"`
-		Competence []string              `json:"competence" binding:"omitempty"`
-	}
-	var employeeUpdate Employee
-	if err := c.BindJSON(&employeeUpdate); err != nil {
+    employeeUpdate, err := middleware.GetData[middleware.Employee](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

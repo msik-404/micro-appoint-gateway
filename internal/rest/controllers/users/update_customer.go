@@ -23,14 +23,8 @@ func UpdateCustomer(c *gin.Context) {
 		return
 	}
 
-	type CustomerPlain struct {
-		Mail     *string `json:"mail" binding:"omitempty,max=30"`
-		PlainPwd *string `json:"pwd" bidning:"omitempty,max=72"`
-		Name     *string `json:"name" binding:"omitempty,max=30"`
-		Surname  *string `json:"surname" binding:"omitempty,max=30"`
-	}
-	var customerUpdatePlain CustomerPlain
-	if err := c.BindJSON(&customerUpdatePlain); err != nil {
+    customerUpdatePlain, err := middleware.GetData[middleware.UserUpdate](c)
+	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}

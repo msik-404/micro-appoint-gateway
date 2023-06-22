@@ -17,7 +17,93 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
+	"github.com/msik-404/micro-appoint-gateway/internal/strtime"
 )
+
+type Company struct {
+	Name             *string `json:"name" binding:"omitempty,max=30"`
+	Type             *string `json:"type" binding:"omitempty,max=30"`
+	Localisation     *string `json:"localisation" binding:"omitempty,max=60"`
+	ShortDescription *string `json:"short_description" binding:"omitempty,max=150"`
+	LongDescription  *string `json:"long_description" binding:"omitempty,max=300"`
+}
+
+type Service struct {
+	Name        *string `json:"name" binding:"omitempty,max=30"`
+	Price       *int32  `json:"price" binding:"omitempty,min=0,max=1000000"`
+	Duration    *int32  `json:"duration" binding:"omitempty,min=0,max=480"`
+	Description *string `json:"description" binding:"omitempty,max=300"`
+}
+
+type Employee struct {
+	Name       *string               `json:"name" binding:"omitempty,max=30"`
+	Surname    *string               `json:"surname" binding:"omitempty,max=30"`
+	WorkTimes  *strtime.WorkTimesStr `json:"work_times" binding:"omitempty"`
+	Competence []string              `json:"competence" binding:"omitempty"`
+}
+
+type User struct {
+	Mail     string  `json:"mail" binding:"required,max=30"`
+	PlainPwd string  `json:"pwd" bidning:"required,max=72"`
+	Name     *string `json:"name" binding:"omitempty,max=30"`
+	Surname  *string `json:"surname" binding:"omitempty,max=30"`
+}
+
+type UserUpdate struct {
+	Mail     *string `json:"mail" binding:"omitempty,max=30"`
+	PlainPwd *string `json:"pwd" bidning:"omitempty,max=72"`
+	Name     *string `json:"name" binding:"omitempty,max=30"`
+	Surname  *string `json:"surname" binding:"omitempty,max=30"`
+}
+
+func bind[T any](c *gin.Context, key string) {
+	var generic T
+	if err := c.BindJSON(&generic); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.Set(key, generic)
+}
+
+func BindAuth[T any](c *gin.Context) {
+    bind[T](c, "auth")
+}
+
+func Bind[T any](c *gin.Context) {
+    bind[T](c, "data")
+}
+
+func BindWithAuth[T any](c *gin.Context) {
+	type AuthGeneric struct {
+		Auth auth.Token `json:"auth" binding:"required"`
+		Data T          `json:"data" binding:"required"`
+	}
+	var authGeneric AuthGeneric
+	if err := c.BindJSON(&authGeneric); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.Set("auth", authGeneric.Auth)
+	c.Set("data", authGeneric.Data)
+}
+
+func GetData[T any](c *gin.Context) (*T, error) {
+	result, ok := c.Get("data")
+	if !ok {
+		return nil, errors.New("data field not set")
+	}
+	data := result.(T)
+	return &data, nil
+}
+
+func GetAuth(c *gin.Context) (*auth.Token, error) {
+	result, ok := c.Get("auth")
+	if !ok {
+		return nil, errors.New("user unauthorized")
+	}
+	data := result.(auth.Token)
+	return &data, nil
+}
 
 type Customer struct {
 	ID      string
@@ -27,11 +113,12 @@ type Customer struct {
 }
 
 func RequireCustomerAuth(c *gin.Context) {
-	tokenStr, err := c.Cookie("Authorization")
+	tokenRequest, err := GetAuth(c)
 	if err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
+	tokenStr := tokenRequest.Token
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -105,11 +192,12 @@ type Owner struct {
 }
 
 func RequireOwnerAuth(c *gin.Context) {
-	tokenStr, err := c.Cookie("Authorization")
+	tokenRequest, err := GetAuth(c)
 	if err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
+	tokenStr := tokenRequest.Token
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -151,13 +239,13 @@ func RequireOwnerAuth(c *gin.Context) {
 			}
 			return
 		}
-        owner := Owner{
-            ID:      ownerID,
-            Mail:    reply.GetMail(),
-            Name:    reply.GetName(),
-            Surname: reply.GetSurname(),
-            Companies: make(map[string]struct{}),
-        }
+		owner := Owner{
+			ID:        ownerID,
+			Mail:      reply.GetMail(),
+			Name:      reply.GetName(),
+			Surname:   reply.GetSurname(),
+			Companies: make(map[string]struct{}),
+		}
 		for _, company := range reply.GetCompanies() {
 			owner.Companies[company] = struct{}{}
 		}

@@ -14,24 +14,21 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
+	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
 func LoginCustomer(c *gin.Context) {
-	type LoginPlain struct {
-		Mail     string `json:"mail" binding:"required,max=30"`
-		PlainPwd string `json:"pwd" binding:"required,max=72"`
-	}
-	var loginPlain LoginPlain
-	if err := c.BindJSON(&loginPlain); err != nil {
+    loginPlain, err := middleware.GetData[middleware.User](c)
+    if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
-	}
+    }
 	message := userspb.CustomerCredentialsRequest{
 		Mail: &loginPlain.Mail,
 	}
 
 	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(users.ConnString, grpc.WithInsecure())
+	conn, err = grpc.Dial(users.ConnString, grpc.WithInsecure())
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
@@ -61,13 +58,10 @@ func LoginCustomer(c *gin.Context) {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	tokenStr, err := auth.CreateJWT(reply.GetId())
+	token, err := auth.CreateJWT(reply.GetId())
 	if err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenStr, 3600, "/", "localhost", false, true)
-
-	c.JSON(http.StatusOK, gin.H{})
+    c.JSON(http.StatusOK, token)
 }
