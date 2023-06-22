@@ -66,43 +66,16 @@ func bind[T any](c *gin.Context, key string) {
 	c.Set(key, generic)
 }
 
-func BindAuth[T any](c *gin.Context) {
-	bind[T](c, "auth")
-}
-
 func Bind[T any](c *gin.Context) {
 	bind[T](c, "data")
-}
-
-func BindWithAuth[T any](c *gin.Context) {
-	type AuthGeneric struct {
-		Auth auth.Token `json:"auth" binding:"required"`
-		Data T          `json:"data" binding:"required"`
-	}
-	var authGeneric AuthGeneric
-	if err := c.BindJSON(&authGeneric); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	c.Set("auth", authGeneric.Auth)
-	c.Set("data", authGeneric.Data)
 }
 
 func GetData[T any](c *gin.Context) (*T, error) {
 	result, ok := c.Get("data")
 	if !ok {
-		return nil, errors.New("data field not set")
+		return nil, errors.New("Data field not set")
 	}
 	data := result.(T)
-	return &data, nil
-}
-
-func GetAuth(c *gin.Context) (*auth.Token, error) {
-	result, ok := c.Get("auth")
-	if !ok {
-		return nil, errors.New("user unauthorized")
-	}
-	data := result.(auth.Token)
 	return &data, nil
 }
 
