@@ -7,13 +7,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees/employeespb"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -38,14 +37,8 @@ func GetCompany(c *gin.Context) {
 	companiesReply, err := companiesClient.FindOneCompany(ctx, &companiesMessage)
 
 	if err != nil {
-		code := status.Code(err)
-		if code == codes.InvalidArgument {
-			c.AbortWithError(http.StatusBadRequest, err)
-		} else if code == codes.NotFound {
-			c.AbortWithError(http.StatusNotFound, err)
-		} else {
-			c.AbortWithError(http.StatusInternalServerError, err)
-		}
+        status := grpctohttp.GrpcCodeToHttpCode(err)
+        c.AbortWithError(status, err)
 		return
 	}
 
@@ -61,13 +54,9 @@ func GetCompany(c *gin.Context) {
 	employeesReply, err := employeesClient.FindManyEmployees(ctx, &employeesMessage)
 
 	if err != nil {
-		code := status.Code(err)
-        if code != codes.NotFound {
-            if code == codes.InvalidArgument {
-                c.AbortWithError(http.StatusBadRequest, err)
-            } else {
-                c.AbortWithError(http.StatusInternalServerError, err)
-            }
+        status := grpctohttp.GrpcCodeToHttpCode(err)
+        if status != http.StatusNotFound {
+            c.AbortWithError(status, err)
             return
         }
 	}

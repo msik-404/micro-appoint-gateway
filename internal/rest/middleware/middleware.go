@@ -12,12 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/strtime"
 )
 
@@ -141,13 +140,11 @@ func RequireCustomerAuth(c *gin.Context) {
 		defer cancel()
 		reply, err := client.FindOneCustomer(ctx, &message)
 		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
+			status := grpctohttp.GrpcCodeToHttpCode(err)
+			if status == http.StatusNotFound {
 				c.AbortWithError(http.StatusUnauthorized, err)
 			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				c.AbortWithError(status, err)
 			}
 			return
 		}
@@ -219,13 +216,11 @@ func RequireOwnerAuth(c *gin.Context) {
 		reply, err := client.FindOneOwner(ctx, &message)
 
 		if err != nil {
-			code := status.Code(err)
-			if code == codes.InvalidArgument {
-				c.AbortWithError(http.StatusBadRequest, err)
-			} else if code == codes.NotFound {
+			status := grpctohttp.GrpcCodeToHttpCode(err)
+			if status == http.StatusNotFound {
 				c.AbortWithError(http.StatusUnauthorized, err)
 			} else {
-				c.AbortWithError(http.StatusInternalServerError, err)
+				c.AbortWithError(status, err)
 			}
 			return
 		}
