@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees/employeespb"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -23,48 +22,46 @@ func GetCompany(c *gin.Context) {
 		return
 	}
 
-	var companiesConn *grpc.ClientConn
-	companiesConn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer companiesConn.Close()
-	companiesClient := companiespb.NewApiClient(companiesConn)
+    myCompaniesClient, err := companies.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myCompaniesClient.Conn.Close()
+    companiesClient := myCompaniesClient.Client
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	companiesMessage := companiespb.CompanyRequest{Id: &companyID}
 	companiesReply, err := companiesClient.FindOneCompany(ctx, &companiesMessage)
 
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
 		return
 	}
 
-	var employeesConn *grpc.ClientConn
-	employeesConn, err = grpc.Dial(employees.ConnString, grpc.WithInsecure())
+    myEmployeesClient, err := employees.GetClient()
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	defer employeesConn.Close()
-	employeesClient := employeespb.NewApiClient(employeesConn)
+	defer myCompaniesClient.Conn.Close()
+	employeesClient := myEmployeesClient.Client
 	employeesMessage := employeespb.EmployeesRequest{CompanyId: &companyID}
 	employeesReply, err := employeesClient.FindManyEmployees(ctx, &employeesMessage)
 
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        if status != http.StatusNotFound {
-            c.AbortWithError(status, err)
-            return
-        }
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		if status != http.StatusNotFound {
+			c.AbortWithError(status, err)
+			return
+		}
 	}
 
-    var employees []*employeespb.EmployeeShort
-    if employeesReply != nil {
-        employees = employeesReply.Employees
-    }
+	var employees []*employeespb.EmployeeShort
+	if employeesReply != nil {
+		employees = employeesReply.Employees
+	}
 
 	type Response struct {
 		Name            *string                      `json:"name,omitempty"`

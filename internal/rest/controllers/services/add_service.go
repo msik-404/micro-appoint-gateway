@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -34,7 +33,7 @@ func AddService(c *gin.Context) {
 		return
 	}
 
-    newService, err := middleware.GetData[middleware.Service](c)
+	newService, err := middleware.GetData[middleware.Service](c)
 	if err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
@@ -47,22 +46,21 @@ func AddService(c *gin.Context) {
 		Description: newService.Description,
 	}
 
-	var conn *grpc.ClientConn
-	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer conn.Close()
-	client := companiespb.NewApiClient(conn)
+    myClient, err := companies.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myClient.Conn.Close()
+    client := myClient.Client
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	reply, err := client.AddService(ctx, &message)
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
-        return
-    }
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
+		return
+	}
 	c.JSON(http.StatusOK, reply)
 }

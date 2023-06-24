@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees/employeespb"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 	"github.com/msik-404/micro-appoint-gateway/internal/strtime"
 )
@@ -22,14 +21,13 @@ func GetEmployee(c *gin.Context) {
 		return
 	}
 
-	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(employees.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer conn.Close()
-	client := employeespb.NewApiClient(conn)
+    myClient, err := employees.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myClient.Conn.Close()
+    client := myClient.Client
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	message := employeespb.EmployeeRequest{
@@ -38,8 +36,8 @@ func GetEmployee(c *gin.Context) {
 	reply, err := client.FindOneEmployee(ctx, &message)
 
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
 		return
 	}
 	type Employee struct {

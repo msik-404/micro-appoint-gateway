@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -30,14 +29,13 @@ func GetCompanies(c *gin.Context) {
 		return
 	}
 
-	var conn *grpc.ClientConn
-	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer conn.Close()
-	client := companiespb.NewApiClient(conn)
+    myClient, err := companies.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myClient.Conn.Close()
+	client := myClient.Client
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -47,8 +45,8 @@ func GetCompanies(c *gin.Context) {
 	}
 	reply, err := client.FindManyCompanies(ctx, &message)
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
 		return
 	}
 	c.JSON(http.StatusOK, reply.Companies)

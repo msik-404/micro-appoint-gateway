@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
 
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies/companiespb"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpctohttp"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
@@ -36,41 +35,40 @@ func DeleteCompany(c *gin.Context) {
 		return
 	}
 
-	var conn *grpc.ClientConn
-	conn, err = grpc.Dial(companies.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	companiesClient := companiespb.NewApiClient(conn)
+    myCompaniesClient, err := companies.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myCompaniesClient.Conn.Close()
+    companiesClient := myCompaniesClient.Client
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	companiesMessage := companiespb.DeleteCompanyRequest{Id: &companyID}
 	reply, err := companiesClient.DeleteCompany(ctx, &companiesMessage)
-    conn.Close()
 
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
 		return
 	}
 
-	conn, err = grpc.Dial(users.ConnString, grpc.WithInsecure())
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	defer conn.Close()
-	usersMessage := userspb.DeleteOwnedCompanyRequest{
-		Id:        &owner.ID,
-		CompanyId: &companyID,
-	}
-	usersClient := userspb.NewApiClient(conn)
+    myUsersClient, err := users.GetClient()
+    if err != nil {
+        c.AbortWithError(http.StatusInternalServerError, err)
+        return
+    }
+    defer myUsersClient.Conn.Close()
+    usersClient := myUsersClient.Client
+    usersMessage := userspb.DeleteOwnedCompanyRequest{
+        Id:        &owner.ID,
+        CompanyId: &companyID,
+    }
 	reply, err = usersClient.DeleteOwnedCompany(ctx, &usersMessage)
 
 	if err != nil {
-        status := grpctohttp.GrpcCodeToHttpCode(err)
-        c.AbortWithError(status, err)
+		status := mygrpc.GrpcCodeToHttpCode(err)
+		c.AbortWithError(status, err)
 		return
 	}
 	c.JSON(http.StatusOK, reply)
