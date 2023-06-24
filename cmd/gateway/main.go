@@ -4,6 +4,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/employees"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/services"
@@ -12,6 +13,11 @@ import (
 )
 
 func main() {
+    conns, err := grpc.New()
+    if err != nil {
+        panic(err)
+    }
+
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -21,32 +27,32 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	r.GET("/companies", companies.GetCompanies)
-	r.GET("/companies/:company_id", companies.GetCompany)
-	r.GET("/companies/:company_id/services", services.GetServices)
-	r.GET("/companies/:company_id/employees", employees.GetEmployees)
-	r.GET("/employees/:employee_id", employees.GetEmployee)
-	r.GET("/owners/companies", middleware.RequireOwnerAuth, companies.GetCompaniesByIds)
+	r.GET("/companies", companies.GetCompanies(conns))
+	r.GET("/companies/:company_id", companies.GetCompany(conns))
+	r.GET("/companies/:company_id/services", services.GetServices(conns))
+	r.GET("/companies/:company_id/employees", employees.GetEmployees(conns))
+	r.GET("/employees/:employee_id", employees.GetEmployee(conns))
+	r.GET("/owners/companies", middleware.RequireOwnerAuth(conns), companies.GetCompaniesByIds(conns))
 
-	r.POST("/login/customers", middleware.Bind[middleware.User], users.LoginCustomer)
-	r.POST("/login/owners", middleware.Bind[middleware.User], users.LoginOwner)
-	r.POST("/companies", middleware.RequireOwnerAuth, middleware.Bind[middleware.Company], companies.AddCompany)
-	r.POST("/companies/:company_id/services", middleware.RequireOwnerAuth, middleware.Bind[middleware.Service], services.AddService)
-	r.POST("/companies/:company_id/employees", middleware.RequireOwnerAuth, middleware.Bind[middleware.Employee], employees.AddEmployee)
-	r.POST("/customers", middleware.Bind[middleware.User], users.AddCustomer)
-	r.POST("/owners", middleware.Bind[middleware.User], users.AddOwner)
+	r.POST("/login/customers", middleware.Bind[middleware.User], users.LoginCustomer(conns))
+	r.POST("/login/owners", middleware.Bind[middleware.User], users.LoginOwner(conns))
+	r.POST("/companies", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Company], companies.AddCompany(conns))
+	r.POST("/companies/:company_id/services", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Service], services.AddService(conns))
+	r.POST("/companies/:company_id/employees", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Employee], employees.AddEmployee(conns))
+	r.POST("/customers", middleware.Bind[middleware.User], users.AddCustomer(conns))
+	r.POST("/owners", middleware.Bind[middleware.User], users.AddOwner(conns))
 
-	r.PUT("/companies/:company_id", middleware.RequireOwnerAuth, middleware.Bind[middleware.Company], companies.UpdateCompany)
-	r.PUT("/companies/:company_id/services/:service_id", middleware.RequireOwnerAuth, middleware.Bind[middleware.Service], services.UpdateService)
-	r.PUT("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth, middleware.Bind[middleware.Employee], employees.UpdateEmployee)
-	r.PUT("/customers", middleware.RequireCustomerAuth, middleware.Bind[middleware.UserUpdate], users.UpdateCustomer)
-	r.PUT("/owners", middleware.RequireOwnerAuth, middleware.Bind[middleware.UserUpdate], users.UpdateOwner)
+	r.PUT("/companies/:company_id", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Company], companies.UpdateCompany(conns))
+	r.PUT("/companies/:company_id/services/:service_id", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Service], services.UpdateService(conns))
+	r.PUT("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Employee], employees.UpdateEmployee(conns))
+	r.PUT("/customers", middleware.RequireCustomerAuth(conns), middleware.Bind[middleware.UserUpdate], users.UpdateCustomer(conns))
+	r.PUT("/owners", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.UserUpdate], users.UpdateOwner(conns))
 
-	r.DELETE("/companies/:company_id", middleware.RequireOwnerAuth, companies.DeleteCompany)
-	r.DELETE("/companies/:company_id/services/:service_id", middleware.RequireOwnerAuth, services.DeleteService)
-	r.DELETE("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth, employees.DeleteEmployee)
-	r.DELETE("/customers", middleware.RequireCustomerAuth, users.DeleteCustomer)
-	r.DELETE("/owners", middleware.RequireOwnerAuth, users.DeleteOwner)
+	r.DELETE("/companies/:company_id", middleware.RequireOwnerAuth(conns), companies.DeleteCompany(conns))
+	r.DELETE("/companies/:company_id/services/:service_id", middleware.RequireOwnerAuth(conns), services.DeleteService(conns))
+	r.DELETE("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth(conns), employees.DeleteEmployee(conns))
+	r.DELETE("/customers", middleware.RequireCustomerAuth(conns), users.DeleteCustomer(conns))
+	r.DELETE("/owners", middleware.RequireOwnerAuth(conns), users.DeleteOwner(conns))
 
 	r.Run() // listen and serve on 0.0.0.0:8080
 }

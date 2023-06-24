@@ -6,28 +6,51 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 )
 
-type MyGrpcClient[T any] struct {
-    Client T
-    Conn *grpc.ClientConn
+type GRPCConns struct {
+	CompaniesConn *grpc.ClientConn
+	EmployeeSConn *grpc.ClientConn
+	UsersConn     *grpc.ClientConn
 }
 
-func GetMyGrpcClient[T any](
-    connString string, 
-    getClient func(grpc.ClientConnInterface) T,
-) (*MyGrpcClient[T], error) {
-	var conn *grpc.ClientConn
-    conn, err := grpc.Dial(connString, grpc.WithInsecure())
+func New() (*GRPCConns, error) {
+	conns := GRPCConns{}
+	companiesConn, err := grpc.Dial(companies.ConnString, grpc.WithInsecure())
 	if err != nil {
-        return nil, err
+		return nil, err
 	}
-	defer conn.Close()
-	client := getClient(conn)
-    return &MyGrpcClient[T]{Client: client, Conn: conn}, nil
+	conns.CompaniesConn = companiesConn
+	employeesConn, err := grpc.Dial(employees.ConnString, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	conns.EmployeeSConn = employeesConn
+	usersConn, err := grpc.Dial(users.ConnString, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	conns.UsersConn = usersConn
+	return &conns, nil
 }
 
-func GrpcCodeToHttpCode(err error) int {
+func (conns *GRPCConns) GetCompaniesConn() *grpc.ClientConn {
+	return conns.CompaniesConn
+}
+
+func (conns *GRPCConns) GetEmployeesConn() *grpc.ClientConn {
+	return conns.EmployeeSConn
+}
+
+func (conns *GRPCConns) GetUsersConn() *grpc.ClientConn {
+	return conns.UsersConn
+}
+
+func GRPCCodeToHTTPCode(err error) int {
 	switch code := status.Code(err); code {
 	case codes.InvalidArgument:
 		return http.StatusBadRequest

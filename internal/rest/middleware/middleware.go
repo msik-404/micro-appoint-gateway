@@ -12,9 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 
-	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/auth"
-	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
+	mygrpc "github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users/userspb"
 	"github.com/msik-404/micro-appoint-gateway/internal/strtime"
 )
@@ -102,62 +101,58 @@ type Customer struct {
 	Surname string
 }
 
-func RequireCustomerAuth(c *gin.Context) {
-	tokenStr, err := getAuthHeader(c)
-	if err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
-		return
-	}
-	token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(auth.Secret), nil
-	})
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
+func RequireCustomerAuth(conns *mygrpc.GRPCConns) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr, err := getAuthHeader(c)
+		if err != nil {
 			c.AbortWithError(http.StatusUnauthorized, err)
 			return
 		}
-		// check if that user is present in database
-		customerID := claims["user_id"].(string)
-		message := userspb.CustomerRequest{
-			Id: &customerID,
-		}
-
-        myClient, err := users.GetClient()
-        if err != nil {
-            c.AbortWithError(http.StatusInternalServerError, err)
-            return
-        }
-        defer myClient.Conn.Close()
-        client := myClient.Client
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		reply, err := client.FindOneCustomer(ctx, &message)
-		if err != nil {
-			status := mygrpc.GrpcCodeToHttpCode(err)
-			if status == http.StatusNotFound {
-				c.AbortWithError(http.StatusUnauthorized, err)
-			} else {
-				c.AbortWithError(status, err)
+		token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
+			return []byte(auth.Secret), nil
+		})
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			if float64(time.Now().Unix()) > claims["exp"].(float64) {
+				c.AbortWithError(http.StatusUnauthorized, err)
+				return
+			}
+			// check if that user is present in database
+			customerID := claims["user_id"].(string)
+			message := userspb.CustomerRequest{
+				Id: &customerID,
+			}
+
+			client := userspb.NewApiClient(conns.GetUsersConn())
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			reply, err := client.FindOneCustomer(ctx, &message)
+			if err != nil {
+				status := mygrpc.GRPCCodeToHTTPCode(err)
+				if status == http.StatusNotFound {
+					c.AbortWithError(http.StatusUnauthorized, err)
+				} else {
+					c.AbortWithError(status, err)
+				}
+				return
+			}
+			customer := Customer{
+				ID:      customerID,
+				Mail:    reply.GetMail(),
+				Name:    reply.GetName(),
+				Surname: reply.GetSurname(),
+			}
+			c.Set("customer", customer)
+			c.Next()
 			return
 		}
-		customer := Customer{
-			ID:      customerID,
-			Mail:    reply.GetMail(),
-			Name:    reply.GetName(),
-			Surname: reply.GetSurname(),
-		}
-		c.Set("customer", customer)
-		c.Next()
+		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	c.AbortWithError(http.StatusUnauthorized, err)
-	return
 }
 
 func GetCustomer(c *gin.Context) (Customer, error) {
@@ -177,67 +172,62 @@ type Owner struct {
 	Companies map[string]struct{}
 }
 
-func RequireOwnerAuth(c *gin.Context) {
-	tokenStr, err := getAuthHeader(c)
-	if err != nil {
-		c.AbortWithError(http.StatusUnauthorized, err)
-		return
-	}
-	token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(auth.Secret), nil
-	})
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
+func RequireOwnerAuth(conns *mygrpc.GRPCConns) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr, err := getAuthHeader(c)
+		if err != nil {
 			c.AbortWithError(http.StatusUnauthorized, err)
 			return
 		}
-		// check if that user is present in database
-		ownerID := claims["user_id"].(string)
-		message := userspb.OwnerRequest{
-			Id: &ownerID,
-		}
-
-        myClient, err := users.GetClient()
-        if err != nil {
-            c.AbortWithError(http.StatusInternalServerError, err)
-            return
-        }
-        defer myClient.Conn.Close()
-
-        client := myClient.Client
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		reply, err := client.FindOneOwner(ctx, &message)
-
-		if err != nil {
-			status := mygrpc.GrpcCodeToHttpCode(err)
-			if status == http.StatusNotFound {
-				c.AbortWithError(http.StatusUnauthorized, err)
-			} else {
-				c.AbortWithError(status, err)
+		token, err := jwt.Parse(*tokenStr, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 			}
+			return []byte(auth.Secret), nil
+		})
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			if float64(time.Now().Unix()) > claims["exp"].(float64) {
+				c.AbortWithError(http.StatusUnauthorized, err)
+				return
+			}
+			// check if that user is present in database
+			ownerID := claims["user_id"].(string)
+			message := userspb.OwnerRequest{
+				Id: &ownerID,
+			}
+
+			client := userspb.NewApiClient(conns.GetUsersConn())
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			reply, err := client.FindOneOwner(ctx, &message)
+
+			if err != nil {
+				status := mygrpc.GRPCCodeToHTTPCode(err)
+				if status == http.StatusNotFound {
+					c.AbortWithError(http.StatusUnauthorized, err)
+				} else {
+					c.AbortWithError(status, err)
+				}
+				return
+			}
+			owner := Owner{
+				ID:        ownerID,
+				Mail:      reply.GetMail(),
+				Name:      reply.GetName(),
+				Surname:   reply.GetSurname(),
+				Companies: make(map[string]struct{}),
+			}
+			for _, company := range reply.GetCompanies() {
+				owner.Companies[company] = struct{}{}
+			}
+			c.Set("owner", owner)
+			c.Next()
 			return
 		}
-		owner := Owner{
-			ID:        ownerID,
-			Mail:      reply.GetMail(),
-			Name:      reply.GetName(),
-			Surname:   reply.GetSurname(),
-			Companies: make(map[string]struct{}),
-		}
-		for _, company := range reply.GetCompanies() {
-			owner.Companies[company] = struct{}{}
-		}
-		c.Set("owner", owner)
-		c.Next()
+		c.AbortWithError(http.StatusUnauthorized, err)
 		return
 	}
-	c.AbortWithError(http.StatusUnauthorized, err)
-	return
 }
 
 func GetOwner(c *gin.Context) (Owner, error) {
