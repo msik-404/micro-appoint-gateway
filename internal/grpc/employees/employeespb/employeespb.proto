@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/msik-404/micro-appoint-gateway/internal/grpc/employees/employeespb";
+option go_package = "github.com/msik-404/micro-appoint-employees/internal/employeespb";
 
 package employeespb;
 
@@ -26,7 +26,8 @@ message EmployeesReply {
 }
 
 message EmployeeRequest {
-    optional string id = 1;
+    optional string company_id = 1;
+    optional string id = 2;
 }
 
 message EmployeesRequest {

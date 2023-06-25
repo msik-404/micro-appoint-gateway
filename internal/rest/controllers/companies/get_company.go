@@ -51,20 +51,22 @@ func GetCompany(conns *mygrpc.GRPCConns) gin.HandlerFunc {
 		}
 
 		type Response struct {
-			Name            *string                      `json:"name,omitempty"`
-			Type            *string                      `json:"type,omitempty"`
-			Localisation    *string                      `json:"localisation,omitempty"`
-			LongDescription *string                      `json:"long_description,omitempty"`
-			Services        []*companiespb.Service       `json:"services,omitempty"`
-			Employees       []*employeespb.EmployeeShort `json:"employees,omitempty"`
+			Name             *string                      `json:"name,omitempty"`
+			Type             *string                      `json:"type,omitempty"`
+			Localisation     *string                      `json:"localisation,omitempty"`
+			ShortDescription *string                      `json:"short_description,omitempty"`
+			LongDescription  *string                      `json:"long_description,omitempty"`
+			Services         []*companiespb.Service       `json:"services,omitempty"`
+			Employees        []*employeespb.EmployeeShort `json:"employees,omitempty"`
 		}
 		response := Response{
-			Name:            companiesReply.Name,
-			Type:            companiesReply.Type,
-			Localisation:    companiesReply.Localisation,
-			LongDescription: companiesReply.LongDescription,
-			Services:        companiesReply.Services,
-			Employees:       employees,
+			Name:             companiesReply.Name,
+			Type:             companiesReply.Type,
+			Localisation:     companiesReply.Localisation,
+			ShortDescription: companiesReply.ShortDescription,
+			LongDescription:  companiesReply.LongDescription,
+			Services:         companiesReply.Services,
+			Employees:        employees,
 		}
 		c.JSON(http.StatusOK, response)
 	}

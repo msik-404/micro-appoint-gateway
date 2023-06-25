@@ -31,7 +31,7 @@ func main() {
 	r.GET("/companies/:company_id", companies.GetCompany(conns))
 	r.GET("/companies/:company_id/services", services.GetServices(conns))
 	r.GET("/companies/:company_id/employees", employees.GetEmployees(conns))
-	r.GET("/employees/:employee_id", employees.GetEmployee(conns))
+	r.GET("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth(conns), employees.GetEmployee(conns))
 	r.GET("/owners/companies", middleware.RequireOwnerAuth(conns), companies.GetCompaniesByIds(conns))
 
 	r.POST("/login/customers", middleware.Bind[middleware.User], users.LoginCustomer(conns))
