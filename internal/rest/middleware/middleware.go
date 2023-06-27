@@ -54,6 +54,14 @@ type UserUpdate struct {
 	Surname  *string `json:"surname" binding:"omitempty,max=30"`
 }
 
+type Order struct {
+	CompanyID  string `json:"company_id" binding:"required, len=12"`
+	ServiceID  string `json:"service_id" binding:"required, len=12"`
+	EmployeeID string `json:"employee_id" binding:"required, len=12"`
+	StartTime  string `json:"start_time" binding:"required"`
+	EndTime    string `json:"end_time" binding:"required"`
+}
+
 func bind[T any](c *gin.Context, key string) {
 	var generic T
 	if err := c.BindJSON(&generic); err != nil {
@@ -246,6 +254,28 @@ func IsProperObjectIDHex(hex string) error {
 	return nil
 }
 
+func GetIntArg(c *gin.Context, key string, min int, max int) (*int, error) {
+	query := c.DefaultQuery(key, "")
+    if query == "" {
+        return nil, nil
+    }
+	result, err := strconv.Atoi(query)
+	if err != nil {
+		return nil, err
+	}
+	if result < min {
+		return nil, errors.New(
+			fmt.Sprintf("This value is smaller than min value:%d", min),
+		)
+	}
+	if result > max {
+		return nil, errors.New(
+			fmt.Sprintf("This value is grater than max value:%d", max),
+		)
+	}
+	return &result, nil
+}
+
 func GetNPerPageValue(c *gin.Context) (int64, error) {
 	query := c.DefaultQuery("nPerPage", "30")
 	nPerPage, err := strconv.Atoi(query)
@@ -256,4 +286,28 @@ func GetNPerPageValue(c *gin.Context) (int64, error) {
 		return int64(nPerPage), errors.New("nPerPage should be positive number")
 	}
 	return int64(nPerPage), nil
+}
+
+func GetBoolArg(c *gin.Context, key string) (*bool, error) {
+	query := c.DefaultQuery(key, "")
+	var result bool
+	if query == "false" {
+		result = false
+		return &result, nil
+	} else if query == "true" {
+		result = true
+		return &result, nil
+	} else if query == "" {
+		return nil, nil
+	}
+	return nil, errors.New("bool arg should be: \"true\" or \"false\"")
+}
+
+func GetDateTime(query string) (*int64, error) {
+	t, err := time.Parse(time.RFC3339, query)
+	if err != nil {
+		return nil, err
+	}
+	unixT := t.Unix()
+	return &unixT, nil
 }

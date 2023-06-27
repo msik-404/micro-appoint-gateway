@@ -7,16 +7,17 @@ import (
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/employees"
+	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/orders"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/services"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/controllers/users"
 	"github.com/msik-404/micro-appoint-gateway/internal/rest/middleware"
 )
 
 func main() {
-    conns, err := grpc.New()
-    if err != nil {
-        panic(err)
-    }
+	conns, err := grpc.New()
+	if err != nil {
+		panic(err)
+	}
 
 	r := gin.Default()
 
@@ -33,6 +34,9 @@ func main() {
 	r.GET("/companies/:company_id/employees", employees.GetEmployees(conns))
 	r.GET("/companies/:company_id/employees/:employee_id", middleware.RequireOwnerAuth(conns), employees.GetEmployee(conns))
 	r.GET("/owners/companies", middleware.RequireOwnerAuth(conns), companies.GetCompaniesByIds(conns))
+	r.GET("/companies/:company_id/orders", middleware.RequireOwnerAuth(conns), orders.GetCompanyOrders(conns))
+	r.GET("/customers/orders", middleware.RequireCustomerAuth(conns), orders.GetCustomerOrders(conns))
+	r.GET("/avaliable-dates/companies/:company_id/services/:service_id", middleware.RequireCustomerAuth(conns), orders.GetAvaliableDates(conns))
 
 	r.POST("/login/customers", middleware.Bind[middleware.User], users.LoginCustomer(conns))
 	r.POST("/login/owners", middleware.Bind[middleware.User], users.LoginOwner(conns))
@@ -41,6 +45,7 @@ func main() {
 	r.POST("/companies/:company_id/employees", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Employee], employees.AddEmployee(conns))
 	r.POST("/customers", middleware.Bind[middleware.User], users.AddCustomer(conns))
 	r.POST("/owners", middleware.Bind[middleware.User], users.AddOwner(conns))
+	r.POST("/orders", middleware.RequireCustomerAuth(conns), middleware.Bind[middleware.Order], orders.AddOrder(conns))
 
 	r.PUT("/companies/:company_id", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Company], companies.UpdateCompany(conns))
 	r.PUT("/companies/:company_id/services/:service_id", middleware.RequireOwnerAuth(conns), middleware.Bind[middleware.Service], services.UpdateService(conns))

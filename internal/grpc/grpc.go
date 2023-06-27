@@ -9,6 +9,7 @@ import (
 
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/companies"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/employees"
+	"github.com/msik-404/micro-appoint-gateway/internal/grpc/scheduler"
 	"github.com/msik-404/micro-appoint-gateway/internal/grpc/users"
 )
 
@@ -16,6 +17,7 @@ type GRPCConns struct {
 	CompaniesConn *grpc.ClientConn
 	EmployeeSConn *grpc.ClientConn
 	UsersConn     *grpc.ClientConn
+	SchedulerConn *grpc.ClientConn
 }
 
 func New() (*GRPCConns, error) {
@@ -35,6 +37,11 @@ func New() (*GRPCConns, error) {
 		return nil, err
 	}
 	conns.UsersConn = usersConn
+	schedulerConn, err := grpc.Dial(scheduler.ConnString, grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	conns.SchedulerConn = schedulerConn
 	return &conns, nil
 }
 
@@ -48,6 +55,10 @@ func (conns *GRPCConns) GetEmployeesConn() *grpc.ClientConn {
 
 func (conns *GRPCConns) GetUsersConn() *grpc.ClientConn {
 	return conns.UsersConn
+}
+
+func (conns *GRPCConns) GetSchedulerConn() *grpc.ClientConn {
+	return conns.SchedulerConn
 }
 
 func GRPCCodeToHTTPCode(err error) int {
