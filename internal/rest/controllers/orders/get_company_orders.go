@@ -55,7 +55,7 @@ func GetCompanyOrders(conns *mygrpc.GRPCConns) gin.HandlerFunc {
         var startDate *int64 = nil
 		query = c.DefaultQuery("startDate", "")
 		if query != "" {
-            startDate, err = middleware.GetDateTime(query)
+            startDate, err = middleware.GetDateTime(time.RFC3339, query)
 			if err != nil {
 				c.AbortWithError(http.StatusBadRequest, err)
 				return

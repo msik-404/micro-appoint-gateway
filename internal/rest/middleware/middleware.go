@@ -55,11 +55,15 @@ type UserUpdate struct {
 }
 
 type Order struct {
-	CompanyID  string `json:"company_id" binding:"required, len=12"`
-	ServiceID  string `json:"service_id" binding:"required, len=12"`
-	EmployeeID string `json:"employee_id" binding:"required, len=12"`
+	CompanyID  string `json:"company_id" binding:"required"`
+	ServiceID  string `json:"service_id" binding:"required"`
+	EmployeeID string `json:"employee_id" binding:"required"`
 	StartTime  string `json:"start_time" binding:"required"`
 	EndTime    string `json:"end_time" binding:"required"`
+}
+
+type CancelRequest struct {
+    OrderID    string `json:"order_id" binding:"required"`
 }
 
 func bind[T any](c *gin.Context, key string) {
@@ -303,8 +307,8 @@ func GetBoolArg(c *gin.Context, key string) (*bool, error) {
 	return nil, errors.New("bool arg should be: \"true\" or \"false\"")
 }
 
-func GetDateTime(query string) (*int64, error) {
-	t, err := time.Parse(time.RFC3339, query)
+func GetDateTime(layout string, query string) (*int64, error) {
+	t, err := time.Parse(layout, query)
 	if err != nil {
 		return nil, err
 	}

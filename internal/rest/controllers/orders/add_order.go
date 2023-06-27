@@ -39,12 +39,12 @@ func AddOrder(conns *mygrpc.GRPCConns) gin.HandlerFunc {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
-		startTime, err := middleware.GetDateTime(newOrderPlain.StartTime)
+		startTime, err := middleware.GetDateTime(time.RFC3339, newOrderPlain.StartTime)
 		if err != nil {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}
-        endTime, err := middleware.GetDateTime(newOrderPlain.EndTime)
+        endTime, err := middleware.GetDateTime(time.RFC3339, newOrderPlain.EndTime)
 		if err != nil {
 			c.AbortWithError(http.StatusBadRequest, err)
 			return
