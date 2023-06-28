@@ -41,7 +41,7 @@ func main() {
 	r.GET("/owners/companies", middleware.RequireOwnerAuth(connsGRPC), companies.GetCompaniesByIds(connsGRPC))
 	r.GET("/companies/:company_id/orders", middleware.RequireOwnerAuth(connsGRPC), orders.GetCompanyOrders(connsGRPC))
 	r.GET("/customers/orders", middleware.RequireCustomerAuth(connsGRPC), orders.GetCustomerOrders(connsGRPC))
-	r.GET("/avaliable-dates/companies/:company_id/services/:service_id", middleware.RequireCustomerAuth(connsGRPC), orders.GetAvaliableDates(connsGRPC))
+	r.GET("/available-dates/companies/:company_id/services/:service_id", middleware.RequireCustomerAuth(connsGRPC), orders.GetAvaliableDates(connsGRPC))
 
 	r.POST("/login/customers", middleware.Bind[middleware.User], users.LoginCustomer(connsGRPC))
 	r.POST("/login/owners", middleware.Bind[middleware.User], users.LoginOwner(connsGRPC))

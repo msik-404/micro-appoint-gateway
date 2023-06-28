@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: micro-appoint-gateway-backend-service
+spec:
+  selector:
+    app: micro-appoint-gateway-backend
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 8080 
+      targetPort: 8080 
+      nodePort: 31234
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: micro-appoint-gateway-backend-deployment
+  labels:
+    app: micro-appoint-gateway-backend
+spec:
+  selector:
+    matchLabels:
+      app: micro-appoint-gateway-backend 
+  replicas: 1
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app: micro-appoint-gateway-backend
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: micro-appoint-gateway-backend
+        image: msik/micro-appoint-gateway:latest
+        env:
+        - name: COMPANIES_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: micro-appoint-gateway-backend-config
+              key: companies-hostname
+        - name: EMPLOYEES_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: micro-appoint-gateway-backend-config
+              key: employees-hostname
+        - name: USERS_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: micro-appoint-gateway-backend-config
+              key: users-hostname
+        - name: SCHEDULER_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: micro-appoint-gateway-backend-config
+              key: scheduler-hostname
+        ports:
+        - containerPort: 8080 

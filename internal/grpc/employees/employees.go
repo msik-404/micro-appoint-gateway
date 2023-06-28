@@ -1,5 +1,10 @@
 package employees 
 
-const (
-	ConnString = "employees:50051"
+import (
+	"fmt"
+	"os"
+)
+
+var (
+	ConnString = fmt.Sprintf("%s:50051", os.Getenv("EMPLOYEES_HOSTNAME"))
 )

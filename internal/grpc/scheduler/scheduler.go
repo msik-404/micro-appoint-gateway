@@ -1,5 +1,10 @@
 package scheduler
 
-const (
-	ConnString = "scheduler:50051"
+import (
+	"fmt"
+	"os"
+)
+
+var (
+	ConnString = fmt.Sprintf("%s:50051", os.Getenv("SCHEDULER_HOSTNAME"))
 )
