@@ -11,8 +11,8 @@ services:
       - micro-appoint-net
     ports:
       - 8080:8080
-    volumes:
-      - .:/app
+        # volumes:
+        #   - .:/app
 
 networks:
   micro-appoint-net:
